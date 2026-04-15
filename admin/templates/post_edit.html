@@ -1,0 +1,269 @@
+{% extends "base.html" %}
+
+{% block title %}{{ '編集' if slug else '新規作成' }} — Weather Note Admin{% endblock %}
+{% block page_title %}{{ '記事を編集' if slug else '新規記事' }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="btn btn-ghost" href="{{ url_for('posts_list') }}">&#8592; 一覧へ戻る</a>
+{% endblock %}
+
+{% block extra_head %}
+<!-- EasyMDE -->
+<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+<style>
+  .editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ---- Main column ---- */
+  .editor-main { display: flex; flex-direction: column; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
+
+  input[type="text"],
+  input[type="date"],
+  textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus,
+  input[type="date"]:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+  }
+
+  #title-input { font-size: 18px; font-weight: 600; padding: 10px 14px; }
+
+  .slug-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slug-row input { flex: 1; font-family: monospace; font-size: 13px; }
+  .slug-prefix { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* EasyMDE override */
+  .EasyMDEContainer { border-radius: 6px; overflow: hidden; }
+  .EasyMDEContainer .CodeMirror { min-height: 400px; font-size: 14px; }
+
+  /* ---- Side column ---- */
+  .editor-side { display: flex; flex-direction: column; gap: 16px; }
+
+  .side-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .side-card h3 { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+
+  .draft-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .draft-toggle input[type="checkbox"] {
+    width: 16px; height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+  }
+
+  .btn-save {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    justify-content: center;
+  }
+
+  .btn-del {
+    width: 100%;
+    padding: 8px;
+    font-size: 13px;
+    justify-content: center;
+    margin-top: 4px;
+  }
+
+  datalist { display: none; }
+
+  .cover-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post">
+  <div class="editor-layout">
+
+    <!-- ===== 左: メインエディター ===== -->
+    <div class="editor-main">
+
+      <!-- タイトル -->
+      <div class="card" style="padding:16px;">
+        <div class="field">
+          <label for="title-input">タイトル</label>
+          <input id="title-input" type="text" name="title"
+                 value="{{ fm.title or '' }}"
+                 placeholder="記事タイトルを入力"
+                 autocomplete="off" required>
+        </div>
+
+        <!-- スラグ -->
+        <div class="field" style="margin-top:12px;">
+          <label>スラグ（ファイル名）</label>
+          <div class="slug-row">
+            <span class="slug-prefix">content/posts/</span>
+            <input type="text" name="slug" id="slug-input"
+                   value="{{ suggested_slug or '' }}"
+                   placeholder="20260415-my-post"
+                   pattern="[a-zA-Z0-9_\-]+"
+                   title="英数字・ハイフン・アンダースコアのみ"
+                   autocomplete="off" required>
+            <span class="slug-prefix">.md</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 本文エディター -->
+      <div class="card" style="padding:16px;">
+        <div class="field">
+          <label>本文（Markdown）</label>
+          <textarea id="body-editor" name="body">{{ body or '' }}</textarea>
+        </div>
+      </div>
+
+    </div><!-- /editor-main -->
+
+    <!-- ===== 右: メタ情報サイドバー ===== -->
+    <div class="editor-side">
+
+      <!-- 公開設定 -->
+      <div class="side-card">
+        <h3>公開設定</h3>
+
+        <label class="draft-toggle">
+          <input type="checkbox" name="draft" id="draft-check"
+                 {{ 'checked' if fm.draft else '' }}>
+          下書きとして保存
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-save">
+          &#10003; 保存する
+        </button>
+
+        {% if slug %}
+        <form method="post" action="{{ url_for('post_delete', slug=slug) }}"
+              onsubmit="return confirm('この記事を削除しますか？この操作は取り消せません。')"
+              style="margin:0;">
+          <button type="submit" class="btn btn-danger btn-del">
+            &#128465; 削除する
+          </button>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- 日付 -->
+      <div class="side-card">
+        <h3>投稿日</h3>
+        <input type="date" name="date"
+               value="{{ fm.date | string | truncate(10, True, '') if fm.date else '' }}">
+      </div>
+
+      <!-- カテゴリ -->
+      <div class="side-card">
+        <h3>カテゴリ</h3>
+        <input type="text" name="categories" id="categories-input"
+               value="{{ fm.categories | join(', ') if fm.categories else '' }}"
+               placeholder="analysis, 予報解説"
+               list="categories-list"
+               autocomplete="off">
+        <datalist id="categories-list">
+          {% for cat in categories %}
+            <option value="{{ cat }}">
+          {% endfor %}
+        </datalist>
+        <div class="cover-hint">カンマ区切りで複数入力</div>
+      </div>
+
+      <!-- タグ -->
+      <div class="side-card">
+        <h3>タグ</h3>
+        <input type="text" name="tags" id="tags-input"
+               value="{{ fm.tags | join(', ') if fm.tags else '' }}"
+               placeholder="python, wrf, 気象"
+               list="tags-list"
+               autocomplete="off">
+        <datalist id="tags-list">
+          {% for tag in tags %}
+            <option value="{{ tag }}">
+          {% endfor %}
+        </datalist>
+        <div class="cover-hint">カンマ区切りで複数入力</div>
+      </div>
+
+      <!-- カバー画像 -->
+      <div class="side-card">
+        <h3>カバー画像</h3>
+        <input type="text" name="coverImage"
+               value="{{ fm.coverImage or '' }}"
+               placeholder="thumbnail.png">
+        <div class="cover-hint">static/images/ に配置したファイル名</div>
+      </div>
+
+    </div><!-- /editor-side -->
+  </div><!-- /editor-layout -->
+</form>
+
+<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+<script>
+  // EasyMDE 初期化
+  const easyMDE = new EasyMDE({
+    element: document.getElementById("body-editor"),
+    spellChecker: false,
+    autosave: { enabled: true, delay: 3000, uniqueId: "weather-note-{{ slug or 'new' }}" },
+    toolbar: [
+      "bold", "italic", "strikethrough", "|",
+      "heading-1", "heading-2", "heading-3", "|",
+      "unordered-list", "ordered-list", "|",
+      "link", "image", "code", "table", "|",
+      "preview", "side-by-side", "fullscreen", "|",
+      "guide"
+    ],
+    placeholder: "本文をここに書きます...",
+    status: ["lines", "words"],
+  });
+
+  // タイトルからスラグを自動生成（新規作成のみ）
+  {% if not slug %}
+  const titleInput = document.getElementById("title-input");
+  const slugInput  = document.getElementById("slug-input");
+  let slugEdited = false;
+
+  slugInput.addEventListener("input", () => { slugEdited = true; });
+
+  titleInput.addEventListener("input", () => {
+    if (slugEdited) return;
+    const title = titleInput.value;
+    if (!title) return;
+    fetch(`/api/slug?title=${encodeURIComponent(title)}`)
+      .then(r => r.json())
+      .then(d => { if (!slugEdited) slugInput.value = d.slug; });
+  });
+  {% endif %}
+</script>
+{% endblock %}

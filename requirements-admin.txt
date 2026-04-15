@@ -1,0 +1,4 @@
+# 管理画面の依存パッケージ
+# Flask, ruamel.yaml, slugify は Anaconda 環境に含まれているため追加インストール不要
+# もし不足している場合:
+# pip install flask ruamel.yaml slugify
