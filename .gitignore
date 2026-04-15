@@ -31,3 +31,8 @@ wp-export/
 .claude/
 public/
 .hugo_build.lock
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
