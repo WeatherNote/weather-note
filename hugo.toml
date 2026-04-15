@@ -17,20 +17,20 @@ enableRobotsTXT = true
 
 [[menus.main]]
   name = "気象データ分析"
-  url = "/weather-note/categories/analysis/"
+  url = "/categories/analysis/"
   weight = 1
 
 [[menus.main]]
   name = "予報解説"
-  url = "/weather-note/categories/%e4%ba%88%e5%a0%b1%e8%a7%a3%e8%aa%ac/"
+  url = "/categories/予報解説/"
   weight = 2
 
 [[menus.main]]
   name = "研究・自己研鑽"
-  url = "/weather-note/categories/study/"
+  url = "/categories/研究自己研鑽/"
   weight = 3
 
 [[menus.main]]
   name = "すべての記事"
-  url = "/weather-note/posts/"
+  url = "/posts/"
   weight = 4

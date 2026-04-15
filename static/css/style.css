@@ -296,6 +296,9 @@ ul { list-style: none; }
 }
 
 /* ---------- Article (Single Post) ---------- */
+.p-article__main { min-width: 0; }
+.p-postCard      { min-width: 0; }
+
 .p-article__container {
   display: grid;
   grid-template-columns: 1fr 280px;
@@ -350,6 +353,8 @@ ul { list-style: none; }
   font-size: 1rem;
   line-height: 1.85;
   color: var(--color-text);
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 .p-article__body h2 {
   font-size: 1.35rem;
@@ -418,7 +423,10 @@ ul { list-style: none; }
   box-shadow: var(--shadow);
 }
 .p-article__body table {
-  width: 100%;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
   border-collapse: collapse;
   margin: 1.5rem 0;
   font-size: .9rem;
