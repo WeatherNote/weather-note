@@ -1,7 +1,7 @@
 # Weather Note — よく使うコマンド集
 # 使い方: make <コマンド名>
 
-.PHONY: new preview publish help
+.PHONY: new preview publish admin help
 
 ## 新しい記事を作成する
 ## 使い方: make new SLUG=20260416-記事名
@@ -35,6 +35,12 @@ publish:
 	@echo "✅ 公開完了！1〜2分後に反映されます"
 	@echo "   https://weathernote.github.io/weather-note/"
 
+## 管理画面を起動する（初回のみ: pip install python-slugify）
+admin:
+	@echo "🔧 管理画面: http://localhost:5001/posts"
+	@echo "   終了するには Ctrl+C"
+	FLASK_APP=admin/app.py python -m flask run --port 5001
+
 ## ヘルプを表示する
 help:
 	@echo "使えるコマンド:"
@@ -42,3 +48,4 @@ help:
 	@echo "  make new SLUG=20260416-記事名    新しい記事ファイルを作成"
 	@echo "  make preview                      ローカルでプレビュー"
 	@echo "  make publish MSG=\"コミットメッセージ\"  GitHubに公開"
+	@echo "  make admin                         管理画面を起動（http://localhost:5001）"

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}記事一覧 — Weather Note Admin{% endblock %}
+{% block page_title %}記事一覧{% endblock %}
+
+{% block topbar_actions %}
+  <a class="btn btn-primary" href="{{ url_for('post_new') }}">&#43; 新規作成</a>
+{% endblock %}
+
+{% block extra_head %}
+<style>
+  .posts-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .posts-table thead th {
+    background: #f8fafc;
+    padding: 10px 14px;
+    text-align: left;
+    font-weight: 600;
+    color: #475569;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .posts-table tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .posts-table tbody tr:hover { background: #f8fafc; }
+  .posts-table td { padding: 10px 14px; vertical-align: middle; }
+
+  .post-title a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .post-title a:hover { text-decoration: underline; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+  .badge-draft    { background: #fef3c7; color: #92400e; }
+  .badge-published{ background: #d1fae5; color: #065f46; }
+
+  .cat-tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: #e0f2fe;
+    color: #0369a1;
+    font-size: 11px;
+    margin: 1px;
+  }
+
+  .actions { display: flex; gap: 6px; }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-state p { margin-bottom: 16px; font-size: 15px; }
+
+  /* モーダル確認ダイアログ */
+  .delete-form { display: inline; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card" style="overflow:hidden;">
+  {% if posts %}
+  <table class="posts-table">
+    <thead>
+      <tr>
+        <th style="width:44%">タイトル</th>
+        <th style="width:10%">日付</th>
+        <th style="width:18%">カテゴリ</th>
+        <th style="width:8%">状態</th>
+        <th style="width:20%">操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for post in posts %}
+      <tr>
+        <td class="post-title">
+          <a href="{{ url_for('post_edit', slug=post.slug) }}">{{ post.title }}</a>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">{{ post.slug }}</div>
+        </td>
+        <td style="white-space:nowrap;color:var(--muted);">{{ post.date }}</td>
+        <td>
+          {% for cat in post.categories %}
+            <span class="cat-tag">{{ cat }}</span>
+          {% endfor %}
+        </td>
+        <td>
+          {% if post.draft %}
+            <span class="badge badge-draft">下書き</span>
+          {% else %}
+            <span class="badge badge-published">公開</span>
+          {% endif %}
+        </td>
+        <td>
+          <div class="actions">
+            <a class="btn btn-ghost" href="{{ url_for('post_edit', slug=post.slug) }}">編集</a>
+            <form class="delete-form"
+                  method="post"
+                  action="{{ url_for('post_delete', slug=post.slug) }}"
+                  onsubmit="return confirm('「{{ post.title }}」を削除しますか？この操作は取り消せません。')">
+              <button type="submit" class="btn btn-danger">削除</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <p>記事がありません。</p>
+    <a class="btn btn-primary" href="{{ url_for('post_new') }}">最初の記事を作成する</a>
+  </div>
+  {% endif %}
+</div>
+
+<div style="margin-top:12px;color:var(--muted);font-size:12px;">
+  {{ posts|length }} 件
+</div>
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}公開する — Weather Note Admin{% endblock %}
+{% block page_title %}GitHubへ公開{% endblock %}
+
+{% block extra_head %}
+<style>
+  .publish-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 24px;
+    align-items: start;
+  }
+
+  .side-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .side-card h3 {
+    font-size: 12px;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin-bottom: 2px;
+  }
+
+  textarea.msg-input {
+    width: 100%;
+    height: 80px;
+    resize: vertical;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  textarea.msg-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+  }
+
+  .btn-publish {
+    width: 100%;
+    padding: 11px;
+    font-size: 14px;
+    justify-content: center;
+  }
+
+  /* git status / output */
+  .terminal {
+    background: #0d1117;
+    color: #d1d5db;
+    border-radius: 8px;
+    padding: 20px;
+    font-family: "JetBrains Mono", "Fira Code", monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-all;
+    min-height: 120px;
+  }
+  .terminal .prompt { color: #38bdf8; }
+  .terminal .success { color: #4ade80; }
+  .terminal .error-line { color: #f87171; }
+
+  .status-empty { color: #6b7280; font-style: italic; }
+
+  .result-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+  }
+  .result-card h2 { font-size: 15px; font-weight: 600; margin-bottom: 16px; }
+
+  .info-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .info-list li { font-size: 13px; color: var(--muted); }
+  .info-list a { color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="publish-layout">
+
+  <!-- ===== 左: ステータス + 出力 ===== -->
+  <div style="display:flex;flex-direction:column;gap:20px;">
+
+    <!-- git status -->
+    <div class="result-card">
+      <h2>変更ファイル（git status）</h2>
+      {% if status_output %}
+        <div class="terminal">{{ status_output }}</div>
+      {% else %}
+        <div class="terminal status-empty">変更なし（クリーンな状態）</div>
+      {% endif %}
+    </div>
+
+    <!-- git コマンド実行結果 -->
+    {% if git_output is not none %}
+    <div class="result-card">
+      <h2>実行結果</h2>
+      <div class="terminal">
+        {%- for line in git_output.split('\n') -%}
+          {%- if line.startswith('$ git') -%}
+            <span class="prompt">{{ line }}</span>{{ '\n' }}
+          {%- elif 'error' in line.lower() or 'fatal' in line.lower() -%}
+            <span class="error-line">{{ line }}</span>{{ '\n' }}
+          {%- elif 'To https://' in line or 'branch' in line.lower() -%}
+            <span class="success">{{ line }}</span>{{ '\n' }}
+          {%- else -%}
+            {{ line }}{{ '\n' }}
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+
+      {% if 'push' in git_output and 'エラー' not in git_output %}
+      <div style="margin-top:16px;padding:14px;background:#dcfce7;border-radius:6px;color:#166534;font-size:13px;">
+        &#10003; 公開完了！1〜2分後にサイトへ反映されます。
+        <br><a href="{{ site_url }}" target="_blank" rel="noopener" style="color:#166534;font-weight:600;">
+          サイトを確認する &#8599;
+        </a>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+  </div><!-- /left -->
+
+  <!-- ===== 右: 公開フォーム ===== -->
+  <div style="display:flex;flex-direction:column;gap:16px;">
+    <div class="side-card">
+      <h3>コミットメッセージ</h3>
+      <form method="post">
+        <textarea class="msg-input" name="message"
+                  placeholder="新記事: タイトル"
+                  required>{{ request.form.get('message', '') }}</textarea>
+        <button type="submit" class="btn btn-primary btn-publish" style="margin-top:8px;">
+          &#9729; GitHubへ公開する
+        </button>
+      </form>
+    </div>
+
+    <div class="side-card">
+      <h3>デプロイの仕組み</h3>
+      <ul class="info-list">
+        <li>&#x2460; git add -A</li>
+        <li>&#x2461; git commit -m "メッセージ"</li>
+        <li>&#x2462; git push → GitHub Actions 起動</li>
+        <li>&#x2463; Hugo ビルド → GitHub Pages 公開</li>
+      </ul>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+        push 後 1〜2 分で反映されます
+      </div>
+    </div>
+
+    <div class="side-card">
+      <h3>サイトリンク</h3>
+      <a href="{{ site_url }}" target="_blank" rel="noopener"
+         style="color:var(--primary);font-size:13px;word-break:break-all;">
+        {{ site_url }} &#8599;
+      </a>
+    </div>
+  </div><!-- /right -->
+
+</div>
+{% endblock %}

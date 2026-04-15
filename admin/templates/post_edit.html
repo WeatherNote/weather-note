@@ -1,0 +1,695 @@
+{% extends "base.html" %}
+
+{% block title %}{{ '編集' if slug else '新規作成' }} — Weather Note Admin{% endblock %}
+{% block page_title %}{{ '記事を編集' if slug else '新規記事' }}{% endblock %}
+
+{% block topbar_actions %}
+  <a class="btn btn-ghost" href="{{ url_for('posts_list') }}">&#8592; 一覧へ戻る</a>
+{% endblock %}
+
+{% block extra_head %}
+<!-- EasyMDE -->
+<link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
+<style>
+  .editor-layout {
+    display: grid;
+    grid-template-columns: 1fr 260px;
+    gap: 20px;
+    align-items: start;
+  }
+
+  /* ---- Main column ---- */
+  .editor-main { display: flex; flex-direction: column; gap: 16px; }
+
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 12px; font-weight: 600; color: #475569; text-transform: uppercase; letter-spacing: .04em; }
+
+  input[type="text"],
+  input[type="date"],
+  textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    background: #fff;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  input[type="text"]:focus,
+  input[type="date"]:focus,
+  textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(3,105,161,0.1);
+  }
+
+  #title-input { font-size: 18px; font-weight: 600; padding: 10px 14px; }
+
+  .slug-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .slug-row input { flex: 1; font-family: monospace; font-size: 13px; }
+  .slug-prefix { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+  /* EasyMDE override */
+  .EasyMDEContainer { border-radius: 6px; overflow: hidden; }
+  .EasyMDEContainer .CodeMirror { min-height: 400px; font-size: 14px; }
+
+  /* ---- Side column ---- */
+  .editor-side { display: flex; flex-direction: column; gap: 16px; }
+
+  .side-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .side-card h3 { font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+
+  .draft-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .draft-toggle input[type="checkbox"] {
+    width: 16px; height: 16px;
+    cursor: pointer;
+    accent-color: var(--primary);
+  }
+
+  .btn-save { width: 100%; padding: 10px; font-size: 14px; justify-content: center; }
+  .btn-del  { width: 100%; padding: 8px;  font-size: 13px; justify-content: center; margin-top: 4px; }
+
+  datalist { display: none; }
+  .cover-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ================================================================
+     画像ピッカー モーダル
+     ================================================================ */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    width: min(860px, 95vw);
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  }
+
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .modal-header h2 { font-size: 15px; font-weight: 600; }
+  .modal-close {
+    background: none; border: none; cursor: pointer;
+    font-size: 20px; color: var(--muted); line-height: 1;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .modal-close:hover { background: #f1f5f9; color: var(--text); }
+
+  .modal-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .modal-tab {
+    padding: 10px 20px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--muted);
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .modal-tab.active { border-bottom-color: var(--primary); color: var(--primary); }
+
+  .modal-body { padding: 20px; overflow-y: auto; flex: 1; }
+
+  /* アップロードエリア */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    color: var(--muted);
+  }
+  .drop-zone:hover, .drop-zone.drag-over {
+    border-color: var(--primary);
+    background: #f0f9ff;
+    color: var(--primary);
+  }
+  .drop-zone .drop-icon { font-size: 40px; display: block; margin-bottom: 10px; }
+  .drop-zone p { font-size: 14px; margin-bottom: 6px; }
+  .drop-zone small { font-size: 12px; }
+  .drop-zone input[type="file"] { display: none; }
+
+  .upload-preview {
+    margin-top: 16px;
+    display: none;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .upload-preview.visible { display: flex; }
+  .upload-preview img { max-width: 120px; max-height: 90px; border-radius: 6px; border: 1px solid var(--border); object-fit: cover; }
+  .upload-preview-info { flex: 1; font-size: 13px; }
+  .upload-preview-name { font-weight: 500; word-break: break-all; }
+  .upload-progress {
+    margin-top: 8px;
+    height: 4px;
+    background: #e2e8f0;
+    border-radius: 2px;
+    overflow: hidden;
+    display: none;
+  }
+  .upload-progress.visible { display: block; }
+  .upload-progress-bar {
+    height: 100%;
+    background: var(--primary);
+    transition: width 0.3s;
+    width: 0%;
+  }
+
+  .upload-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+  /* 画像グリッド（既存画像） */
+  .img-search {
+    margin-bottom: 14px;
+  }
+  .img-search input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  .img-search input:focus { outline: none; border-color: var(--primary); }
+
+  .img-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+  .img-item {
+    border: 2px solid transparent;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+    background: #f8fafc;
+  }
+  .img-item:hover { border-color: var(--primary); transform: translateY(-1px); }
+  .img-item.selected { border-color: var(--primary); outline: 3px solid rgba(3,105,161,0.25); }
+  .img-item img {
+    width: 100%;
+    height: 80px;
+    object-fit: cover;
+    display: block;
+  }
+  .img-item-name {
+    padding: 4px 6px;
+    font-size: 10px;
+    color: var(--muted);
+    word-break: break-all;
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .img-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 13px; }
+
+  .modal-footer {
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    gap: 12px;
+  }
+  .modal-footer-left { font-size: 12px; color: var(--muted); flex: 1; min-width: 0; word-break: break-all; }
+  #modal-alt-input {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    width: 180px;
+  }
+  #modal-alt-input:focus { outline: none; border-color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block content %}
+<form method="post" id="post-form">
+  <div class="editor-layout">
+
+    <!-- ===== 左: メインエディター ===== -->
+    <div class="editor-main">
+
+      <!-- タイトル -->
+      <div class="card" style="padding:16px;">
+        <div class="field">
+          <label for="title-input">タイトル</label>
+          <input id="title-input" type="text" name="title"
+                 value="{{ fm.title or '' }}"
+                 placeholder="記事タイトルを入力"
+                 autocomplete="off" required>
+        </div>
+
+        <!-- スラグ -->
+        <div class="field" style="margin-top:12px;">
+          <label>スラグ（ファイル名）</label>
+          <div class="slug-row">
+            <span class="slug-prefix">content/posts/</span>
+            <input type="text" name="slug" id="slug-input"
+                   value="{{ suggested_slug or '' }}"
+                   placeholder="20260415-my-post"
+                   pattern="[a-zA-Z0-9_\-]+"
+                   title="英数字・ハイフン・アンダースコアのみ"
+                   autocomplete="off" required>
+            <span class="slug-prefix">.md</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 本文エディター -->
+      <div class="card" style="padding:16px;">
+        <div class="field">
+          <label>本文（Markdown）</label>
+          <textarea id="body-editor" name="body">{{ body or '' }}</textarea>
+        </div>
+      </div>
+
+    </div><!-- /editor-main -->
+
+    <!-- ===== 右: メタ情報サイドバー ===== -->
+    <div class="editor-side">
+
+      <!-- 公開設定 -->
+      <div class="side-card">
+        <h3>公開設定</h3>
+
+        <label class="draft-toggle">
+          <input type="checkbox" name="draft" id="draft-check"
+                 {{ 'checked' if fm.draft else '' }}>
+          下書きとして保存
+        </label>
+
+        <button type="submit" class="btn btn-primary btn-save">
+          &#10003; 保存する
+        </button>
+
+        {% if slug %}
+        <form method="post" action="{{ url_for('post_delete', slug=slug) }}"
+              onsubmit="return confirm('この記事を削除しますか？この操作は取り消せません。')"
+              style="margin:0;">
+          <button type="submit" class="btn btn-danger btn-del">
+            &#128465; 削除する
+          </button>
+        </form>
+        {% endif %}
+      </div>
+
+      <!-- 日付 -->
+      <div class="side-card">
+        <h3>投稿日</h3>
+        <input type="date" name="date"
+               value="{{ fm.date | string | truncate(10, True, '') if fm.date else '' }}">
+      </div>
+
+      <!-- カテゴリ -->
+      <div class="side-card">
+        <h3>カテゴリ</h3>
+        <input type="text" name="categories" id="categories-input"
+               value="{{ fm.categories | join(', ') if fm.categories else '' }}"
+               placeholder="analysis, 予報解説"
+               list="categories-list"
+               autocomplete="off">
+        <datalist id="categories-list">
+          {% for cat in categories %}
+            <option value="{{ cat }}">
+          {% endfor %}
+        </datalist>
+        <div class="cover-hint">カンマ区切りで複数入力</div>
+      </div>
+
+      <!-- タグ -->
+      <div class="side-card">
+        <h3>タグ</h3>
+        <input type="text" name="tags" id="tags-input"
+               value="{{ fm.tags | join(', ') if fm.tags else '' }}"
+               placeholder="python, wrf, 気象"
+               list="tags-list"
+               autocomplete="off">
+        <datalist id="tags-list">
+          {% for tag in tags %}
+            <option value="{{ tag }}">
+          {% endfor %}
+        </datalist>
+        <div class="cover-hint">カンマ区切りで複数入力</div>
+      </div>
+
+      <!-- カバー画像 -->
+      <div class="side-card">
+        <h3>カバー画像</h3>
+        <input type="text" name="coverImage" id="cover-image-input"
+               value="{{ fm.coverImage or '' }}"
+               placeholder="thumbnail.png">
+        <button type="button" class="btn btn-ghost" style="font-size:12px;padding:5px 10px;"
+                onclick="openImagePicker('cover')">
+          &#128247; 画像を選択
+        </button>
+        <div class="cover-hint">static/images/ に配置したファイル名</div>
+      </div>
+
+    </div><!-- /editor-side -->
+  </div><!-- /editor-layout -->
+</form>
+
+
+<!-- ================================================================
+     画像ピッカー モーダル
+     ================================================================ -->
+<div class="modal-overlay" id="img-modal">
+  <div class="modal">
+
+    <div class="modal-header">
+      <h2>&#128247; 画像を挿入</h2>
+      <button class="modal-close" onclick="closeImagePicker()" aria-label="閉じる">&times;</button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="modal-tab active" data-tab="upload" onclick="switchTab('upload')">アップロード</button>
+      <button class="modal-tab" data-tab="library" onclick="switchTab('library')">ライブラリ</button>
+    </div>
+
+    <!-- タブ: アップロード -->
+    <div class="modal-body" id="tab-upload">
+      <div class="drop-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <span class="drop-icon">&#128228;</span>
+        <p>クリックまたはドラッグ＆ドロップで画像を選択</p>
+        <small>PNG / JPG / GIF / WebP / SVG（上限 20MB）</small>
+        <input type="file" id="file-input" accept="image/*" multiple>
+      </div>
+
+      <div class="upload-preview" id="upload-preview">
+        <img id="upload-thumb" src="" alt="">
+        <div class="upload-preview-info">
+          <div class="upload-preview-name" id="upload-fname"></div>
+          <div class="upload-progress" id="upload-progress">
+            <div class="upload-progress-bar" id="upload-bar"></div>
+          </div>
+          <div id="upload-status" style="font-size:12px;margin-top:6px;color:var(--muted);"></div>
+        </div>
+      </div>
+
+      <div class="upload-actions" id="upload-actions" style="display:none;">
+        <button class="btn btn-primary" id="btn-do-upload">&#9650; アップロードして挿入</button>
+        <button class="btn btn-ghost" onclick="resetUpload()">キャンセル</button>
+      </div>
+    </div>
+
+    <!-- タブ: ライブラリ -->
+    <div class="modal-body" id="tab-library" style="display:none;">
+      <div class="img-search">
+        <input type="text" id="img-search" placeholder="ファイル名で検索…" oninput="filterImages()">
+      </div>
+      <div class="img-grid" id="img-grid">
+        <div class="img-empty">読み込み中…</div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <div class="modal-footer-left" id="selected-info">画像を選択してください</div>
+      <input type="text" id="modal-alt-input" placeholder="代替テキスト（省略可）">
+      <button class="btn btn-primary" id="btn-insert" disabled onclick="insertSelected()">
+        挿入する
+      </button>
+    </div>
+
+  </div>
+</div><!-- /modal-overlay -->
+
+
+<script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
+<script>
+  // ----------------------------------------------------------------
+  // EasyMDE 初期化
+  // ----------------------------------------------------------------
+  const easyMDE = new EasyMDE({
+    element: document.getElementById("body-editor"),
+    spellChecker: false,
+    autosave: { enabled: true, delay: 3000, uniqueId: "weather-note-{{ slug or 'new' }}" },
+    toolbar: [
+      "bold", "italic", "strikethrough", "|",
+      "heading-1", "heading-2", "heading-3", "|",
+      "unordered-list", "ordered-list", "|",
+      "link",
+      {
+        name: "image-picker",
+        action: () => openImagePicker("editor"),
+        className: "fa fa-image",
+        title: "画像を挿入",
+        text: "🖼",
+      },
+      "code", "table", "|",
+      "preview", "side-by-side", "fullscreen", "|",
+      "guide"
+    ],
+    placeholder: "本文をここに書きます...",
+    status: ["lines", "words"],
+  });
+
+  // ----------------------------------------------------------------
+  // スラグ自動生成（新規作成のみ）
+  // ----------------------------------------------------------------
+  {% if not slug %}
+  const titleInput = document.getElementById("title-input");
+  const slugInput  = document.getElementById("slug-input");
+  let slugEdited = false;
+
+  slugInput.addEventListener("input", () => { slugEdited = true; });
+  titleInput.addEventListener("input", () => {
+    if (slugEdited) return;
+    const title = titleInput.value;
+    if (!title) return;
+    fetch(`/api/slug?title=${encodeURIComponent(title)}`)
+      .then(r => r.json())
+      .then(d => { if (!slugEdited) slugInput.value = d.slug; });
+  });
+  {% endif %}
+
+  // ----------------------------------------------------------------
+  // 画像ピッカー
+  // ----------------------------------------------------------------
+  let pickerMode = "editor";  // "editor" | "cover"
+  let selectedImage = null;   // { name, preview_url, markdown_url }
+  let pendingFile = null;     // アップロード待ちの File オブジェクト
+
+  function openImagePicker(mode) {
+    pickerMode = mode;
+    selectedImage = null;
+    document.getElementById("btn-insert").disabled = true;
+    document.getElementById("selected-info").textContent = "画像を選択してください";
+    document.getElementById("modal-alt-input").value = "";
+    document.getElementById("img-modal").classList.add("open");
+    // ライブラリタブが開いていたら画像を読み込む
+    if (document.getElementById("tab-library").style.display !== "none") {
+      loadLibrary();
+    }
+  }
+
+  function closeImagePicker() {
+    document.getElementById("img-modal").classList.remove("open");
+    resetUpload();
+  }
+
+  // オーバーレイクリックで閉じる
+  document.getElementById("img-modal").addEventListener("click", e => {
+    if (e.target === e.currentTarget) closeImagePicker();
+  });
+  // Esc キーで閉じる
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeImagePicker();
+  });
+
+  function switchTab(tab) {
+    document.querySelectorAll(".modal-tab").forEach(t => t.classList.remove("active"));
+    document.querySelector(`[data-tab="${tab}"]`).classList.add("active");
+    document.getElementById("tab-upload").style.display  = tab === "upload"  ? "" : "none";
+    document.getElementById("tab-library").style.display = tab === "library" ? "" : "none";
+    if (tab === "library") loadLibrary();
+  }
+
+  // ---- アップロードタブ ----
+  const dropZone   = document.getElementById("drop-zone");
+  const fileInput  = document.getElementById("file-input");
+
+  dropZone.addEventListener("dragover",  e => { e.preventDefault(); dropZone.classList.add("drag-over"); });
+  dropZone.addEventListener("dragleave", ()=> dropZone.classList.remove("drag-over"));
+  dropZone.addEventListener("drop", e => {
+    e.preventDefault();
+    dropZone.classList.remove("drag-over");
+    const files = e.dataTransfer.files;
+    if (files.length) showUploadPreview(files[0]);
+  });
+  fileInput.addEventListener("change", () => {
+    if (fileInput.files.length) showUploadPreview(fileInput.files[0]);
+  });
+
+  function showUploadPreview(file) {
+    pendingFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById("upload-thumb").src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+    document.getElementById("upload-fname").textContent = file.name;
+    document.getElementById("upload-preview").classList.add("visible");
+    document.getElementById("upload-actions").style.display = "flex";
+    document.getElementById("upload-status").textContent = "";
+  }
+
+  function resetUpload() {
+    pendingFile = null;
+    fileInput.value = "";
+    document.getElementById("upload-thumb").src = "";
+    document.getElementById("upload-fname").textContent = "";
+    document.getElementById("upload-preview").classList.remove("visible");
+    document.getElementById("upload-actions").style.display = "none";
+    document.getElementById("upload-progress").classList.remove("visible");
+    document.getElementById("upload-bar").style.width = "0%";
+    document.getElementById("upload-status").textContent = "";
+  }
+
+  document.getElementById("btn-do-upload").addEventListener("click", async () => {
+    if (!pendingFile) return;
+    const btn = document.getElementById("btn-do-upload");
+    btn.disabled = true;
+
+    const progressWrap = document.getElementById("upload-progress");
+    const bar   = document.getElementById("upload-bar");
+    const status = document.getElementById("upload-status");
+    progressWrap.classList.add("visible");
+    bar.style.width = "30%";
+    status.textContent = "アップロード中…";
+
+    const fd = new FormData();
+    fd.append("file", pendingFile);
+
+    try {
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+
+      if (!res.ok) {
+        status.textContent = "❌ " + (data.error || "エラーが発生しました");
+        bar.style.width = "0%";
+        btn.disabled = false;
+        return;
+      }
+
+      bar.style.width = "100%";
+      status.textContent = "✅ アップロード完了";
+      selectedImage = data;
+      selectImageUI(data);
+      // ライブラリに追加されたので再読み込みしておく（次回開いた時のため）
+      allImages = null;
+    } catch(err) {
+      status.textContent = "❌ ネットワークエラー: " + err.message;
+      btn.disabled = false;
+    }
+  });
+
+  // ---- ライブラリタブ ----
+  let allImages = null;
+
+  async function loadLibrary() {
+    if (allImages !== null) { renderGrid(allImages); return; }
+    document.getElementById("img-grid").innerHTML = '<div class="img-empty">読み込み中…</div>';
+    const res  = await fetch("/api/images");
+    const data = await res.json();
+    allImages = data.images;
+    renderGrid(allImages);
+  }
+
+  function renderGrid(images) {
+    const grid = document.getElementById("img-grid");
+    const q    = document.getElementById("img-search").value.toLowerCase();
+    const filtered = images.filter(img => img.name.toLowerCase().includes(q));
+
+    if (!filtered.length) {
+      grid.innerHTML = '<div class="img-empty">画像が見つかりません</div>';
+      return;
+    }
+    grid.innerHTML = filtered.map(img => `
+      <div class="img-item" data-name="${img.name}" data-preview="${img.preview_url}" data-md="${img.markdown_url}"
+           onclick="selectImageFromGrid(this, ${JSON.stringify(img)})">
+        <img src="${img.preview_url}" alt="${img.name}" loading="lazy">
+        <div class="img-item-name">${img.name}</div>
+      </div>
+    `).join("");
+  }
+
+  function filterImages() {
+    if (allImages) renderGrid(allImages);
+  }
+
+  function selectImageFromGrid(el, img) {
+    document.querySelectorAll(".img-item").forEach(i => i.classList.remove("selected"));
+    el.classList.add("selected");
+    selectedImage = img;
+    selectImageUI(img);
+  }
+
+  function selectImageUI(img) {
+    document.getElementById("selected-info").textContent = img.name;
+    document.getElementById("btn-insert").disabled = false;
+  }
+
+  // ---- 挿入 ----
+  function insertSelected() {
+    if (!selectedImage) return;
+    const alt = document.getElementById("modal-alt-input").value.trim() || selectedImage.name;
+
+    if (pickerMode === "editor") {
+      const md = `![${alt}](${selectedImage.markdown_url})`;
+      easyMDE.codemirror.replaceSelection(md);
+      easyMDE.codemirror.focus();
+    } else {
+      // カバー画像フィールドにはファイル名だけ入れる
+      document.getElementById("cover-image-input").value = selectedImage.name;
+    }
+    closeImagePicker();
+  }
+</script>
+{% endblock %}
