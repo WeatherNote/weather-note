@@ -1,16 +1,17 @@
 ---
-title: "平成２８年度第２回（４７回）気象予報士試験　一般知識（問１）"
-date: 2022-01-02
-categories: 
-  - "kakomon"
-tags: 
-  - "47回"
-  - "h28-2"
-  - "一般知識"
-  - "大気の構造"
-  - "学科試験"
-  - "過去問"
-coverImage: "d6bfe8abd0417375a5e0da56cce26ea3.png"
+title: '平成２８年度第２回（４７回）気象予報士試験　一般知識（問１）'
+date: '2022-01-02'
+categories:
+- kakomon
+tags:
+- 47回
+- h28-2
+- 一般知識
+- 大気の構造
+- 学科試験
+- 過去問
+coverImage: 'd6bfe8abd0417375a5e0da56cce26ea3.png'
+draft: true
 ---
 
 ## 問題
