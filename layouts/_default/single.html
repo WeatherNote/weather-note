@@ -1,0 +1,51 @@
+{{ define "main" }}
+<div class="p-article">
+  <div class="p-article__container">
+    <article class="p-article__main">
+      <header class="p-article__header">
+        {{ with .Params.categories }}
+        <div class="p-postCard__cats">
+          {{ range . }}<span class="p-postCard__cat">{{ . }}</span>{{ end }}
+        </div>
+        {{ end }}
+        <h1 class="p-article__title">{{ .Title }}</h1>
+        <div class="p-article__meta">
+          <time datetime="{{ .Date.Format "2006-01-02" }}">{{ .Date.Format "2006年1月2日" }}</time>
+          {{ with .Params.tags }}
+          <div class="p-article__tags">
+            {{ range . }}<span class="p-article__tag">{{ . }}</span>{{ end }}
+          </div>
+          {{ end }}
+        </div>
+        {{ if .Params.coverImage }}
+        <div class="p-article__cover">
+          <img src="{{ "/weather-note/images/" | relURL }}{{ .Params.coverImage }}" alt="{{ .Title }}" loading="eager">
+        </div>
+        {{ end }}
+      </header>
+      <div class="p-article__body">
+        {{ .Content }}
+      </div>
+    </article>
+
+    <aside class="p-sidebar">
+      <div class="c-widget">
+        <h2 class="c-widget__title">最近の記事</h2>
+        <ul class="c-widget__list">
+          {{ range first 5 (where .Site.RegularPages "Type" "posts").ByDate.Reverse }}
+          <li><a href="{{ .Permalink }}">{{ .Title }}</a></li>
+          {{ end }}
+        </ul>
+      </div>
+      <div class="c-widget">
+        <h2 class="c-widget__title">カテゴリー</h2>
+        <ul class="c-widget__list">
+          {{ range .Site.Taxonomies.categories.ByCount }}
+          <li><a href="{{ .Page.Permalink }}">{{ .Page.Title }} ({{ .Count }})</a></li>
+          {{ end }}
+        </ul>
+      </div>
+    </aside>
+  </div>
+</div>
+{{ end }}

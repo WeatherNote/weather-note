@@ -1,0 +1,17 @@
+<header class="l-header">
+  <nav class="l-header__nav">
+    <div class="l-header__inner">
+      <div class="l-header__logo">
+        <a href="{{ "/" | relURL }}">{{ .Site.Title }}</a>
+      </div>
+      <button class="l-header__hamburger" aria-label="メニューを開く" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+      <ul class="l-header__menu">
+        {{ range .Site.Menus.main }}
+        <li><a href="{{ .URL }}">{{ .Name }}</a></li>
+        {{ end }}
+      </ul>
+    </div>
+  </nav>
+</header>

@@ -1,0 +1,42 @@
+{{ define "main" }}
+<div class="p-home">
+  {{ $posts := where .Site.RegularPages "Type" "posts" }}
+  {{ $posts = $posts.ByDate.Reverse }}
+
+  {{ if $posts }}
+  {{ $featured := index $posts 0 }}
+  <section class="p-featured">
+    <a href="{{ $featured.Permalink }}" class="p-featured__link">
+      <div class="p-featured__img">
+        {{ if $featured.Params.coverImage }}
+        <img src="{{ "/weather-note/images/" | relURL }}{{ $featured.Params.coverImage }}" alt="{{ $featured.Title }}" loading="eager">
+        {{ else }}
+        <div class="p-featured__img--placeholder"></div>
+        {{ end }}
+      </div>
+      <div class="p-featured__body">
+        {{ with $featured.Params.categories }}
+        <div class="p-postCard__cats">
+          {{ range . }}<span class="p-postCard__cat">{{ . }}</span>{{ end }}
+        </div>
+        {{ end }}
+        <h2 class="p-featured__title">{{ $featured.Title }}</h2>
+        <time class="p-featured__date" datetime="{{ $featured.Date.Format "2006-01-02" }}">{{ $featured.Date.Format "2006年1月2日" }}</time>
+        <p class="p-featured__excerpt">{{ $featured.Summary | plainify | truncate 120 }}</p>
+      </div>
+    </a>
+  </section>
+
+  {{ $rest := after 1 $posts }}
+  {{ if $rest }}
+  <section class="p-grid">
+    <div class="p-grid__inner">
+      {{ range $rest }}
+      {{ partial "post-card.html" . }}
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+  {{ end }}
+</div>
+{{ end }}

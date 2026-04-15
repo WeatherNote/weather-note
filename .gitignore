@@ -29,3 +29,5 @@ wp-export/
 
 # Claude Code session files
 .claude/
+public/
+.hugo_build.lock
