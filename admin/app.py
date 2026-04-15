@@ -11,7 +11,8 @@ import subprocess
 import time
 import datetime
 
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, jsonify, redirect, render_template, request, send_from_directory, url_for
+from werkzeug.utils import secure_filename
 import ruamel.yaml
 from slugify import slugify
 
@@ -20,8 +21,12 @@ from slugify import slugify
 # ---------------------------------------------------------------------------
 ROOT = pathlib.Path(__file__).parent.parent.resolve()   # プロジェクトルート
 POSTS_DIR = ROOT / "content" / "posts"
+IMAGES_DIR = ROOT / "static" / "images"
 SITE_URL = "https://weathernote.github.io/weather-note/"
 PREVIEW_URL = "http://localhost:1313/weather-note/"
+SITE_BASE_PATH = "/weather-note"   # GitHub Pages のサブパス
+
+ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg"}
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)   # flash メッセージ用
@@ -287,9 +292,56 @@ def publish():
 @app.route("/api/slug")
 def api_slug():
     """タイトルからスラグ候補を返す JSON API（エディターの JS から呼び出す）。"""
-    from flask import jsonify
     title = request.args.get("title", "")
     return jsonify(slug=title_to_slug(title))
+
+
+@app.route("/api/images")
+def api_images():
+    """static/images/ にある画像ファイルの一覧を返す（更新日時の降順）。"""
+    images = []
+    for f in sorted(IMAGES_DIR.iterdir(), key=lambda p: p.stat().st_mtime, reverse=True):
+        if f.suffix.lower().lstrip(".") in ALLOWED_EXTENSIONS:
+            images.append({
+                "name": f.name,
+                "preview_url": f"/admin-img/{f.name}",
+                "markdown_url": f"{SITE_BASE_PATH}/images/{f.name}",
+            })
+    return jsonify(images=images)
+
+
+@app.route("/api/upload", methods=["POST"])
+def api_upload():
+    """画像ファイルを static/images/ にアップロードする。"""
+    if "file" not in request.files:
+        return jsonify(error="ファイルがありません"), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify(error="ファイルが選択されていません"), 400
+    ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        return jsonify(error=f"対応していない形式です（{ext}）。PNG/JPG/GIF/WebP/SVG のみ"), 400
+
+    filename = secure_filename(f.filename)
+    dest = IMAGES_DIR / filename
+    if dest.exists():
+        stem, suffix = os.path.splitext(filename)
+        filename = f"{stem}-{int(time.time())}{suffix}"
+        dest = IMAGES_DIR / filename
+
+    IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    f.save(dest)
+    return jsonify(
+        name=filename,
+        preview_url=f"/admin-img/{filename}",
+        markdown_url=f"{SITE_BASE_PATH}/images/{filename}",
+    )
+
+
+@app.route("/admin-img/<filename>")
+def admin_img(filename):
+    """管理画面内で static/images/ の画像をプレビュー表示する。"""
+    return send_from_directory(IMAGES_DIR, filename)
 
 
 if __name__ == "__main__":
